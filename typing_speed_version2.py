@@ -10,11 +10,12 @@ class TypingSpeedTest:
         self.green = self.red = None
 
         self.wpm_pad = self.time_pad = None
-        self.options_pad = self.title_pad = self.title_win = None
+        self.options_pad = self.win_menu = self.title_win = None
 
         self.rows, self.cols = None, None
         self.tab_char = []
         self.result_wpm = ""
+        self.text = "<------ Welcome in typing speed test! ------>"
 
     def wpm(self, start_time):
         #per min
@@ -30,33 +31,64 @@ class TypingSpeedTest:
         self.time_pad.addstr(0,0, f"Time: {interval:.2f}", curses.A_BOLD)
         self.time_pad.refresh(0, 0, 3, 0, 4, 20)
 
-    def title_blink(self, stdscr):
+    def change_color(self, start_time, color_title):
+        # change_title
+        if time.time() - start_time > 0.7:
+            color_title = self.red if color_title == self.green else self.green
+            start_time = time.time()  # reset time
+        return start_time, color_title
+
+
+    def under_menu(self, stdscr, choice, color_title, start_time):
+
+        self.win_menu.attron(color_title)
+        rectangle(self.win_menu, 0, 0, 5, len(self.text) + 4)
+        self.win_menu.refresh()
+        self.win_menu.attroff(color_title)
+
+        choice = ["WPM LIVE", True] if choice == "1" else ["TYPING IN TIME", False]
+        self.win_menu.addstr(1, 1, f"You choose: {choice[0]}")
+        self.win_menu.addstr(2, 1, f"Loading", curses.A_BOLD)
+        self.win_menu.refresh()
+        stdscr.refresh()
+
+        # Adding dot in "Loading"
+        for dot in range(7):
+            self.win_menu.addstr(2, dot + 8, f".", curses.A_BOLD)
+            time.sleep(0.7)
+            self.win_menu.refresh()
+            stdscr.refresh()
+
+        stdscr.clear()
+        stdscr.refresh()
+
+        return choice
+
+    def main_menu(self, stdscr):
         start_time = time.time()
         color_title = self.green
 
-        text = "<------ Welcome in typing speed test! ------>"
-        text_columns = round((self.cols - len(text))/2)
+        self.text = "<------ Welcome in typing speed test! ------>"
+        text_columns = round((self.cols - len(self.text))/2)
         row = round(self.rows / 2)
 
-        win = curses.newwin(6, len(text)+6, row-2, text_columns-2)
+        self.win_menu = curses.newwin(6, len(self.text)+6, row-2, text_columns-2)
+        self.win_menu.refresh()
         stdscr.refresh()
 
-        win.addstr(2, 1, "Choose the options:")
-        win.addstr(3, 1, "-> WPM in live click key 1")
-        win.addstr(4, 1, "-> Typing in time click key 2")
-        win.refresh()
+        self.win_menu.addstr(2, 1, "Choose the options:")
+        self.win_menu.addstr(3, 1, "-> WPM in live click key 1")
+        self.win_menu.addstr(4, 1, "-> Typing in time click key 2")
+        self.win_menu.refresh()
 
         while True:
-            # change_title
-            if time.time() - start_time > 0.7:
-                color_title = self.red if color_title == self.green else self.green
-                start_time = time.time()  # reset time
+            start_time, color_title = self.change_color(start_time, color_title)
 
-            win.attron(color_title)
-            win.addstr(1, 2, text)
-            rectangle(win, 0, 0, 5, len(text) + 4)
-            win.refresh()
-            win.attroff(color_title)
+            self.win_menu.attron(color_title)
+            self.win_menu.addstr(1, 2, self.text)
+            rectangle(self.win_menu, 0, 0, 5, len(self.text) + 4)
+            self.win_menu.refresh()
+            self.win_menu.attroff(color_title)
 
             #get a number from keyboard
             stdscr.nodelay(True)
@@ -66,15 +98,18 @@ class TypingSpeedTest:
                 key = None
 
             if key == "1" or key == "2":
-                stdscr.clear()
-                stdscr.refresh()
-                return key
+                self.win_menu.clear()
+                return self.under_menu(stdscr, key, color_title, start_time)
 
     def mechanism_live(self, stdscr, option):
-        stdscr.nodelay(True)
+        win_mechanism = curses.newwin(2,self.cols-2,0,1)
+        win_mechanism.nodelay(True)
+        stdscr.border()
+        win_mechanism.refresh()
+        stdscr.refresh()
         while True:
-            stdscr.addstr(1, 0, self.sentences)
-            stdscr.move(1, 0)
+            win_mechanism.addstr(1, 0, self.sentences)
+            win_mechanism.move(1, 0)
 
             wrong_letter = 0
             right_letter = 0
@@ -84,26 +119,26 @@ class TypingSpeedTest:
             start_time = time.time()
             while index < len(self.sentences):
                 try:
-                    char_input = stdscr.get_wch()
+                    char_input = win_mechanism.get_wch()
                     if char_input in ("\n", curses.KEY_ENTER):
                         break
                     self.tab_char.append(char_input)
 
-                    stdscr.move(1, index)
+                    win_mechanism.move(1, index)
                     #BACKSPACE in text
                     if char_input in (curses.KEY_BACKSPACE, 'b', '\x7f'):
                         if index > 0:
                             index -= 1
-                            stdscr.move(1, index)
-                            stdscr.addch(self.sentences[index]) #orginal letter print
-                            stdscr.move(1, index)
+                            win_mechanism.move(1, index)
+                            win_mechanism.addch(self.sentences[index]) #orginal letter print
+                            win_mechanism.move(1, index)
                     #color of text
                     else:
                         if char_input == self.sentences[index]:
-                            stdscr.echochar(char_input, self.green)
+                            win_mechanism.echochar(char_input, self.green)
                             right_letter += 1
                         elif char_input != self.sentences[index]:
-                            stdscr.echochar(char_input, self.red)
+                            win_mechanism.echochar(char_input, self.red)
                             wrong_letter += 1
 
                         index += 1
@@ -114,22 +149,22 @@ class TypingSpeedTest:
                 if option:
                     if len(self.tab_char) < len(self.sentences):
                         self.wpm_pad.addstr(self.wpm(start_time), curses.A_BOLD)
-                        self.wpm_pad.refresh(0, 0, 3, 0, 4, 20)
+                        self.wpm_pad.refresh(0, 0, 3, 1, 4, 20)
                 else:
                     if len(self.tab_char) < len(self.sentences):
                         self.stopwatch(start_time)
 
-            stdscr.clear()
-            stdscr.refresh()
-            stdscr.addstr(4, 0, f"____________________", curses.A_BOLD)
-            stdscr.addstr(5, 0, f"{self.wpm(start_time)}")
-            stdscr.addstr(6, 0, f"Wrong letter: {wrong_letter}", self.red)
-            stdscr.addstr(7, 0, f"Right letter: {right_letter}", self.green)
-            stdscr.addstr(8, 0, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
-            stdscr.addstr(9, 0, f"To restart and see result, click enter")
+            win_mechanism.clear()
+            win_mechanism.refresh()
+            stdscr.addstr(4, 1, f"____________________", curses.A_BOLD)
+            stdscr.addstr(5, 1, f"{self.wpm(start_time)}")
+            stdscr.addstr(6, 1, f"Wrong letter: {wrong_letter}", self.red)
+            stdscr.addstr(7, 1, f"Right letter: {right_letter}", self.green)
+            stdscr.addstr(8, 1, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
+            stdscr.addstr(9, 1, f"To restart and see result, click enter")
 
             try:
-                menu_input = stdscr.get_wch()
+                menu_input = win_mechanism.get_wch()
                 if menu_input == curses.KEY_ENTER:
                     break
             except curses.error:
@@ -146,22 +181,10 @@ class TypingSpeedTest:
 
         self.wpm_pad = curses.newpad(1, 10)
         self.time_pad = curses.newpad(1, 30)
-        self.title_pad = curses.newpad(1, 50)
+        #self.title_pad = curses.newpad(1, 50)
         self.title_win = curses.newwin(1, 50, 10, 20)
         self.options_pad = curses.newpad(5, 50)
-        choice = self.title_blink(stdscr)
-
-        choice = ["WPM LIVE", True] if choice == "1" else ["TYPING IN TIME", False]
-        stdscr.addstr(0, 0,f"You choose: {choice[0]}")
-        stdscr.addstr(1, 0, f"Loading", curses.A_BOLD)
-        stdscr.addstr(5, 0, f":{self.cols} {self.rows}")
-        stdscr.refresh()
-
-        #Adding dot in "Loading"
-        for dot in range(7):
-            stdscr.addstr(1, dot + 7, f".", curses.A_BOLD)
-            time.sleep(0.7)
-            stdscr.refresh()
+        choice = self.main_menu(stdscr)
 
         stdscr.clear()
         stdscr.refresh()
