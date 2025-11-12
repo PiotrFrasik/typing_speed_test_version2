@@ -1,5 +1,6 @@
-import curses, time, math
-from curses.textpad import Textbox, rectangle
+import curses, time
+from math import ceil
+from curses.textpad import rectangle
 class TypingSpeedTest:
 
     def __init__(self):
@@ -29,7 +30,7 @@ class TypingSpeedTest:
     def stopwatch(self, start_time):
         interval = (time.time() - start_time)
         self.time_pad.addstr(0,0, f"Time: {interval:.2f}", curses.A_BOLD)
-        self.time_pad.refresh(0, 0, 3, 0, 4, 20)
+        return interval
 
     def change_color(self, start_time, color_title):
         # change_title
@@ -37,7 +38,6 @@ class TypingSpeedTest:
             color_title = self.red if color_title == self.green else self.green
             start_time = time.time()  # reset time
         return start_time, color_title
-
 
     def under_menu(self, stdscr, choice, color_title, start_time):
 
@@ -47,7 +47,8 @@ class TypingSpeedTest:
         self.win_menu.attroff(color_title)
 
         choice = ["WPM LIVE", True] if choice == "1" else ["TYPING IN TIME", False]
-        self.win_menu.addstr(1, 1, f"You choose: {choice[0]}")
+        self.win_menu.addstr(1, 1, f"You choose: ")
+        self.win_menu.addstr(1, 13, f"{choice[0]}", curses.A_BLINK | curses.A_REVERSE)
         self.win_menu.addstr(2, 1, f"Loading", curses.A_BOLD)
         self.win_menu.refresh()
         stdscr.refresh()
@@ -106,7 +107,7 @@ class TypingSpeedTest:
         win_mechanism.nodelay(True)
         win_mechanism.refresh()
 
-        number_lines = math.ceil(self.length_display_text / self.cols)
+        number_lines = ceil(self.length_display_text / self.cols)
 
         while True:
             win_mechanism.addstr(1, 0, self.sentences)
@@ -163,7 +164,6 @@ class TypingSpeedTest:
                         x_writing = 0
                         y_writing += 1
 
-
                 except curses.error:
                     pass
 
@@ -174,6 +174,7 @@ class TypingSpeedTest:
                 else:
                     if index_sentence < len(self.sentences):
                         self.stopwatch(start_time)
+                        self.time_pad.refresh(0, 0, number_lines + 1, 1, 4, 20)
 
             win_mechanism.clear()
             win_mechanism.refresh()
@@ -184,7 +185,14 @@ class TypingSpeedTest:
             stdscr.addstr(number_lines + 5, 1, f"Right letter: {right_letter}", self.green)
             stdscr.addstr(number_lines + 6, 1, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
             stdscr.addstr(number_lines + 7, 1, f"To restart and see result, click enter")
+
+            if not option:
+                stdscr.addstr(number_lines + 8, 1, f"____________________", curses.A_BOLD)
+                stdscr.addstr(number_lines + 9, 1, f"Time: {self.stopwatch(start_time):.2f}")
+                stdscr.addstr(number_lines + 10, 1, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
+
             stdscr.refresh()
+
             try:
                 menu_input = win_mechanism.get_wch()
                 if menu_input == curses.KEY_ENTER:
@@ -208,12 +216,12 @@ class TypingSpeedTest:
         self.time_pad = curses.newpad(1, 30)
         self.title_win = curses.newwin(1, 50, 10, 20)
         self.options_pad = curses.newpad(5, 50)
-        #choice = self.main_menu(stdscr)
+        choice = self.main_menu(stdscr)
 
         stdscr.clear()
         stdscr.refresh()
 
-        self.mechanism_live(stdscr, "1")#choice[1])
+        self.mechanism_live(stdscr, choice[1])
 
 if __name__ == "__main__":
     curses.wrapper(TypingSpeedTest().typing_speed)
