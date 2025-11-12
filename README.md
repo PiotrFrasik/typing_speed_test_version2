@@ -16,6 +16,8 @@ It’s a terminal-based application built with **Python** and the **`curses`** l
 - **Simple restart and result view** after each test
 - **Text loaded from an external file (`text.txt`)**
 
+![Opis obrazka](png/WPM-live.png)
+
 ## 🧩 Requirements
 - Python **3.8+** (Windows)
 - Python 3.x (Linux, macOS)
