@@ -1,5 +1,4 @@
-import curses
-import time
+import curses, time, math
 from curses.textpad import Textbox, rectangle
 class TypingSpeedTest:
 
@@ -7,6 +6,7 @@ class TypingSpeedTest:
         with open("text.txt", "r") as f:
             self.sentences = f.read()
 
+        self.length_display_text = len(self.sentences)
         self.green = self.red = None
 
         self.wpm_pad = self.time_pad = None
@@ -106,13 +106,14 @@ class TypingSpeedTest:
         win_mechanism.nodelay(True)
         win_mechanism.refresh()
 
+        number_lines = math.ceil(self.length_display_text / self.cols)
+
         while True:
             win_mechanism.addstr(1, 0, self.sentences)
             win_mechanism.move(1, 0)
 
-            wrong_letter = 0
-            right_letter = 0
-            index = 0
+            wrong_letter = right_letter = 0
+            x_writing =  index_sentence = 0
             y_writing = 1
 
             self.tab_char = []
@@ -121,57 +122,68 @@ class TypingSpeedTest:
             stdscr.border()
             stdscr.refresh()
 
-            while index < len(self.sentences):
+            while index_sentence < len(self.sentences):
                 try:
-                    if index == (self.cols - 2):
-                        index = 0
-
-                    stdscr.addstr(1,10,f"{index}")
-
                     char_input = win_mechanism.get_wch()
                     if char_input in ("\n", curses.KEY_ENTER):
                         break
                     self.tab_char.append(char_input)
 
-                    win_mechanism.move(y_writing, index)
+                    win_mechanism.move(y_writing, x_writing)
                     #BACKSPACE in text
                     if char_input in (curses.KEY_BACKSPACE, '\b', '\x7f'):
-                        if index > 0:
-                            index -= 1
-                            win_mechanism.move(y_writing, index)
-                            win_mechanism.addch(self.sentences[index]) #orginal letter print
-                            win_mechanism.move(y_writing, index)
-                    #color of text
+                        #change line
+                        if x_writing == 0 and y_writing > 1:
+                            x_writing = self.cols - 2
+                            y_writing -= 1
+                        #delete letter
+                        if x_writing > 0:
+                            x_writing -= 1
+
+                        if index_sentence > 0:
+                            index_sentence -= 1
+
+                        win_mechanism.move(y_writing, x_writing)
+                        win_mechanism.addch(self.sentences[index_sentence])  #original letter print
+
+                        if self.tab_char: self.tab_char.pop()
+                    # color of text
                     else:
-                        if char_input == self.sentences[index]:
+                        if char_input == self.sentences[x_writing]:
                             win_mechanism.echochar(char_input, self.green)
                             right_letter += 1
-                        elif char_input != self.sentences[index]:
+                        elif char_input != self.sentences[x_writing]:
                             win_mechanism.echochar(char_input, self.red)
                             wrong_letter += 1
 
-                        index += 1
+                        x_writing += 1
+                        index_sentence += 1
+                    #next line
+                    if x_writing == (self.cols - 2):
+                        x_writing = 0
+                        y_writing += 1
+
 
                 except curses.error:
                     pass
 
                 if option:
-                    if len(self.tab_char) < len(self.sentences):
+                    if index_sentence < len(self.sentences):
                         self.wpm_pad.addstr(self.wpm(start_time), curses.A_BOLD)
-                        self.wpm_pad.refresh(0, 0, 3, 1, 4, 20)
+                        self.wpm_pad.refresh(0, 0, number_lines + 1, 1, 4, 20)
                 else:
-                    if len(self.tab_char) < len(self.sentences):
+                    if index_sentence < len(self.sentences):
                         self.stopwatch(start_time)
 
             win_mechanism.clear()
             win_mechanism.refresh()
             stdscr.clear()
-            stdscr.addstr(4, 1, f"____________________", curses.A_BOLD)
-            stdscr.addstr(5, 1, f"{self.wpm(start_time)}")
-            stdscr.addstr(6, 1, f"Wrong letter: {wrong_letter}", self.red)
-            stdscr.addstr(7, 1, f"Right letter: {right_letter}", self.green)
-            stdscr.addstr(8, 1, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
-            stdscr.addstr(9, 1, f"To restart and see result, click enter")
+            stdscr.addstr(number_lines + 2, 1, f"____________________", curses.A_BOLD)
+            stdscr.addstr(number_lines + 3, 1, f"{self.wpm(start_time)}")
+            stdscr.addstr(number_lines + 4, 1, f"Wrong letter: {wrong_letter}", self.red)
+            stdscr.addstr(number_lines + 5, 1, f"Right letter: {right_letter}", self.green)
+            stdscr.addstr(number_lines + 6, 1, f"‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾", curses.A_BOLD)
+            stdscr.addstr(number_lines + 7, 1, f"To restart and see result, click enter")
             stdscr.refresh()
             try:
                 menu_input = win_mechanism.get_wch()
@@ -196,12 +208,12 @@ class TypingSpeedTest:
         self.time_pad = curses.newpad(1, 30)
         self.title_win = curses.newwin(1, 50, 10, 20)
         self.options_pad = curses.newpad(5, 50)
-        choice = self.main_menu(stdscr)
+        #choice = self.main_menu(stdscr)
 
         stdscr.clear()
         stdscr.refresh()
 
-        self.mechanism_live(stdscr, choice[1])
+        self.mechanism_live(stdscr, "1")#choice[1])
 
 if __name__ == "__main__":
     curses.wrapper(TypingSpeedTest().typing_speed)
